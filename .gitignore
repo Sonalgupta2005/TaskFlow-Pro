@@ -1,0 +1,68 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Vite / React / Frontend Build
+dist
+dist-ssr
+*.local
+.vite/
+
+# Databases
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+*.s3db
+*.sl3
+database.db
+
+# Large media & models (General restrictions)
+*.mp4
+*.mkv
+*.webm
+*.mov
+*.h5
+*.pt
+*.pth
+*.onnx
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
