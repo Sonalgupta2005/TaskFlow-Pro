@@ -13,6 +13,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import toast from 'react-hot-toast';
 import { DroppableColumn } from './DroppableColumn';
+import { TaskEditor } from './TaskEditor';
 
 const COLUMNS: { id: TaskStatus; title: string }[] = [
   { id: 'backlog', title: 'Backlog' },
@@ -55,6 +56,11 @@ export const KanbanBoard = () => {
     const task = tasks.find(t => t.id === taskId);
     if (!task || task.status === newStatus) return;
 
+    if (task.status !== 'backlog' && newStatus === 'backlog') {
+      toast.error(`Cannot move an active or completed task back to backlog.`);
+      return;
+    }
+
     const isMovingForward = (task.status === 'backlog' && newStatus !== 'backlog') || 
                             (task.status === 'in_progress' && (newStatus === 'review' || newStatus === 'done')) ||
                             (task.status === 'review' && newStatus === 'done');
@@ -77,19 +83,44 @@ export const KanbanBoard = () => {
     }
   };
 
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
   if (loading) return <div style={{ padding: '2rem' }}>Loading board...</div>;
+
+  const sortedTasks = [...tasks].sort((a, b) => {
+    const pStartA = new Date(a.start_date).getTime() || 0;
+    const pStartB = new Date(b.start_date).getTime() || 0;
+    if (pStartA !== pStartB) return pStartA - pStartB;
+    
+    const endA = new Date(a.end_date).getTime() || 0;
+    const endB = new Date(b.end_date).getTime() || 0;
+    if (endA !== endB) return endA - endB;
+    
+    const createdA = new Date(a.created_at).getTime() || 0;
+    const createdB = new Date(b.created_at).getTime() || 0;
+    return createdA - createdB;
+  });
 
   return (
     <div className="kanban-container">
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
         {COLUMNS.map(col => (
           <DroppableColumn key={col.id} id={col.id} title={col.title}>
-            {tasks.filter(t => t.status === col.id).map(task => (
-              <TaskCard key={task.id} task={task} />
+            {sortedTasks.filter(t => t.status === col.id).map(task => (
+              <div key={task.id} onDoubleClick={() => setEditingTask(task)}>
+                <TaskCard task={task} />
+              </div>
             ))}
           </DroppableColumn>
         ))}
       </DndContext>
+      {editingTask && (
+        <TaskEditor 
+          taskToEdit={editingTask} 
+          onClose={() => setEditingTask(null)} 
+          onSuccess={loadTasks} 
+        />
+      )}
     </div>
   );
 };

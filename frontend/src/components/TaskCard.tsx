@@ -18,6 +18,23 @@ export const TaskCard = ({ task }: { task: Task }) => {
     cardStyle = { borderColor: 'rgba(239, 68, 68, 0.5)', boxShadow: '0 0 10px rgba(239, 68, 68, 0.1)' };
   }
 
+  const renderDates = () => {
+    // const plannedStart = format(new Date(task.planned_start), 'MMM d');
+    const computedStart = format(new Date(task.start_date), 'MMM d');
+    const computedEnd = format(new Date(task.end_date), 'MMM d');
+    
+    const actualStart = task.actual_start_date ? format(new Date(task.actual_start_date), 'MMM d') : computedStart;
+    const actualEnd = task.actual_end_date ? format(new Date(task.actual_end_date), 'MMM d') : computedEnd;
+    
+    if (task.status === 'backlog') {
+      return `Planned: ${computedStart} - ${computedEnd}`;
+    } else if (task.status === 'in_progress' || task.status === 'review') {
+      return `Started: ${actualStart} - Est: ${computedEnd}`;
+    } else {
+      return `Done: ${actualStart} - ${actualEnd}`;
+    }
+  };
+
   return (
     <div className="task-card" ref={setNodeRef} style={{...style, ...cardStyle}} {...listeners} {...attributes}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -44,7 +61,7 @@ export const TaskCard = ({ task }: { task: Task }) => {
       <div className="task-meta">
         <div className="task-dates">
           <Calendar size={12} />
-          {format(new Date(task.start_date), 'MMM d')} - {format(new Date(task.end_date), 'MMM d')}
+          {renderDates()}
         </div>
         <div className="task-dates">
           <Clock size={12} />

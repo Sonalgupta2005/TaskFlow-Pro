@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
 
@@ -18,6 +18,8 @@ class Task:
     start_date: date
     end_date: date
     blocked: bool
+    actual_start_date: Optional[date] = None
+    actual_end_date: Optional[date] = None
     is_critical: bool = False
 
 class CycleDetectedError(Exception):
@@ -108,20 +110,31 @@ def compute_schedule(tasks: Dict[str, Task], edges: List[Tuple[str, str]]) -> No
             if p_task.status != TaskStatus.DONE:
                 is_blocked = True
             
-            if max_prereq_end is None or p_task.end_date > max_prereq_end:
-                max_prereq_end = p_task.end_date
+            p_end = p_task.actual_end_date if p_task.actual_end_date else p_task.end_date
+            
+            if max_prereq_end is None or p_end > max_prereq_end:
+                max_prereq_end = p_end
                 
         task.blocked = is_blocked
         
-        if task.status == TaskStatus.DONE:
-            continue
+        base_start = task.actual_start_date if task.actual_start_date else task.planned_start
         
-        if max_prereq_end is not None:
-            task.start_date = max(task.planned_start, max_prereq_end)
+        if max_prereq_end is not None and max_prereq_end > base_start:
+            projected_start = max_prereq_end
         else:
-            task.start_date = task.planned_start
+            projected_start = base_start
             
-        task.end_date = task.start_date + timedelta(days=task.duration_days)
+        task.start_date = task.actual_start_date if task.actual_start_date else projected_start
+        
+        if task.status == TaskStatus.DONE:
+            if task.actual_end_date:
+                task.end_date = task.actual_end_date
+            continue
+            
+        if task.actual_start_date and max_prereq_end and max_prereq_end > task.actual_start_date:
+            task.end_date = max_prereq_end + timedelta(days=task.duration_days)
+        else:
+            task.end_date = projected_start + timedelta(days=task.duration_days)
 
     # Compute Critical Path (Backward Pass)
     # late_finish = min of late_start of all successors

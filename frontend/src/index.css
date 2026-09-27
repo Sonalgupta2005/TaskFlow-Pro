@@ -39,32 +39,36 @@
 }
 
 [data-theme="light"] {
-  --bg-main: #F8FAFC;
+  --bg-main: #F9FAFB;
   --bg-secondary: #FFFFFF;
-  --bg-glass: rgba(255, 255, 255, 0.7);
+  --bg-glass: rgba(255, 255, 255, 0.9);
   
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #94A3B8;
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6B7280;
   
-  --border-color: rgba(0, 0, 0, 0.08);
-  --border-glow: rgba(99, 102, 241, 0.4);
+  --border-color: #E5E7EB;
+  --border-glow: rgba(37, 99, 235, 0.3);
   
-  --status-blocked-bg: rgba(239, 68, 68, 0.1);
-  --status-blocked-text: #B91C1C;
-  --status-blocked-border: rgba(239, 68, 68, 0.2);
+  --accent-primary: #2563EB;
+  --accent-hover: #1D4ED8;
+  --accent-glow: 0 0 0 3px rgba(37, 99, 235, 0.2);
   
-  --status-ready-bg: rgba(34, 197, 94, 0.1);
-  --status-ready-text: #15803D;
-  --status-ready-border: rgba(34, 197, 94, 0.2);
+  --status-blocked-bg: #FEF2F2;
+  --status-blocked-text: #DC2626;
+  --status-blocked-border: #FCA5A5;
   
-  --column-bg: rgba(241, 245, 249, 0.7);
-  --modal-backdrop: rgba(15, 23, 42, 0.3);
-  --empty-bg: rgba(0, 0, 0, 0.03);
+  --status-ready-bg: #F0FDF4;
+  --status-ready-text: #16A34A;
+  --status-ready-border: #86EFAC;
+  
+  --column-bg: #F3F4F6;
+  --modal-backdrop: rgba(17, 24, 39, 0.4);
+  --empty-bg: #FFFFFF;
   
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
 }
 
 * {
@@ -87,9 +91,7 @@ body {
 }
 
 [data-theme="light"] body {
-  background-image: 
-    radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.04), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.03), transparent 25%);
+  background-image: none;
 }
 
 /* Glassmorphism utility */
@@ -251,6 +253,7 @@ body {
   font-weight: 700;
   background: linear-gradient(135deg, #818CF8 0%, #C084FC 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   display: flex;
   align-items: center;
@@ -293,7 +296,7 @@ body {
 .input-field {
   width: 100%;
   padding: 0.6rem 0.75rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   color: var(--text-primary);

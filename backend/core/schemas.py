@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 from .engine import TaskStatus
 
@@ -10,9 +10,11 @@ class TaskBase(BaseModel):
     position: int = 0
     duration_days: int = 1
     planned_start: date
+    actual_start_date: Optional[date] = None
+    actual_end_date: Optional[date] = None
 
 class TaskCreate(TaskBase):
-    id: str
+    pass
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -29,6 +31,7 @@ class Task(TaskBase):
     blocked: bool
     is_critical: bool
     version: int
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -38,8 +41,8 @@ class Dependency(BaseModel):
 
 class DependencySuggestion(BaseModel):
     id: int
-    task_id: str
-    suggested_prereq_id: str
+    prerequisite_id: str
+    dependent_id: str
     confidence: str
     rationale: str
     status: str

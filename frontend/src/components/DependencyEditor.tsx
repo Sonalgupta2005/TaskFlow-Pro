@@ -124,9 +124,9 @@ export const DependencyEditor = ({ onClose }: { onClose: () => void }) => {
                   <div key={s.id} style={{ padding: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                       <div style={{ fontSize: '0.85rem' }}>
-                        <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{s.suggested_prereq_id}</span>
+                        <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{s.prerequisite_id}</span>
                         <span style={{ margin: '0 0.5rem' }}>→</span>
-                        <span style={{ fontWeight: 600 }}>{s.task_id}</span>
+                        <span style={{ fontWeight: 600 }}>{s.dependent_id}</span>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button onClick={() => handleAccept(s.id)} style={{ color: 'var(--status-ready-text)', background: 'transparent', border: 'none', cursor: 'pointer' }} title="Accept"><Check size={16} /></button>

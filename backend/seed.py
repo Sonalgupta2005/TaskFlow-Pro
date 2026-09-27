@@ -8,10 +8,8 @@ from core import models
 from core.engine import TaskStatus
 
 def seed_data():
-    if os.path.exists("./taskflow.db"):
-        os.remove("./taskflow.db")
-        
     engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+    models.Base.metadata.drop_all(bind=engine)
     models.Base.metadata.create_all(bind=engine)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = SessionLocal()
@@ -35,6 +33,11 @@ def seed_data():
     ]
     
     db.add_all(tasks)
+    db.commit()
+    
+    # Initialize TaskSequence to 8
+    seq = models.TaskSequence(id=8)
+    db.add(seq)
     db.commit()
     
     # Dependencies

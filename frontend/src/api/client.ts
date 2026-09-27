@@ -16,6 +16,9 @@ export interface Task {
   planned_start: string;
   start_date: string;
   end_date: string;
+  actual_start_date: string | null;
+  actual_end_date: string | null;
+  created_at: string;
   blocked: boolean;
   is_critical: boolean;
   version: number;
@@ -31,9 +34,18 @@ export const fetchTasks = async (): Promise<Task[]> => {
   return data;
 };
 
+export const createTask = async (task: Omit<Task, 'id' | 'start_date' | 'end_date' | 'blocked' | 'is_critical' | 'version' | 'status' | 'position' | 'actual_start_date' | 'actual_end_date' | 'created_at'>): Promise<Task> => {
+  const { data } = await apiClient.post('/tasks', task);
+  return data;
+};
+
 export const updateTask = async (taskId: string, updateData: Partial<Task>): Promise<Task> => {
   const { data } = await apiClient.put(`/tasks/${taskId}`, updateData);
   return data;
+};
+
+export const deleteTask = async (taskId: string): Promise<void> => {
+  await apiClient.delete(`/tasks/${taskId}`);
 };
 
 export const fetchDependencies = async (): Promise<Dependency[]> => {
@@ -52,8 +64,8 @@ export const removeDependency = async (prerequisiteId: string, dependentId: stri
 
 export interface DependencySuggestion {
   id: number;
-  task_id: string;
-  suggested_prereq_id: string;
+  prerequisite_id: string;
+  dependent_id: string;
   confidence: string;
   rationale: string;
   status: string;
@@ -70,5 +82,10 @@ export const acceptSuggestion = async (id: number): Promise<void> => {
 
 export const dismissSuggestion = async (id: number): Promise<void> => {
   await apiClient.post(`/suggestions/${id}/dismiss`);
+};
+
+export const fetchDraftSuggestions = async (title: string, description: string, id: string): Promise<DependencySuggestion[]> => {
+  const { data } = await apiClient.post('/auto-suggest-draft', { title, description, id });
+  return data;
 };
 

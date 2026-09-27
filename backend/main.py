@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from core import models, schemas, engine, ai_pipeline
 from core.database import SessionLocal, engine as db_engine, get_db
@@ -32,6 +33,8 @@ def _recompute_graph(db: Session):
             start_date=dt.start_date or dt.planned_start,
             end_date=dt.end_date or dt.planned_start,
             blocked=dt.blocked,
+            actual_start_date=dt.actual_start_date,
+            actual_end_date=dt.actual_end_date,
             is_critical=dt.is_critical
         )
         
@@ -52,12 +55,22 @@ def _recompute_graph(db: Session):
 
 @app.get("/tasks", response_model=List[schemas.Task])
 def read_tasks(db: Session = Depends(get_db)):
-    tasks = db.query(models.DBTask).order_by(models.DBTask.position).all()
+    tasks = db.query(models.DBTask).order_by(
+        models.DBTask.start_date,
+        models.DBTask.end_date,
+        models.DBTask.created_at
+    ).all()
     return tasks
 
 @app.post("/tasks", response_model=schemas.Task)
 def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
-    db_task = models.DBTask(**task.model_dump(), start_date=task.planned_start, end_date=task.planned_start)
+    seq = models.TaskSequence()
+    db.add(seq)
+    db.commit()
+    db.refresh(seq)
+    
+    new_id = f"TASK-{seq.id}"
+    db_task = models.DBTask(id=new_id, **task.model_dump(), start_date=task.planned_start, end_date=task.planned_start)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
@@ -71,10 +84,29 @@ def update_task(task_id: str, task: schemas.TaskUpdate, db: Session = Depends(ge
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
         
+    old_status = db_task.status
+    
     update_data = task.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         if key == "status" and value:
-            setattr(db_task, key, value.value)
+            new_status = value.value
+            
+            if old_status in ["in_progress", "review", "done"] and new_status == "backlog":
+                raise HTTPException(status_code=400, detail="Cannot move an active or completed task back to backlog.")
+                
+            setattr(db_task, key, new_status)
+            
+            from datetime import date
+            today = date.today()
+            
+            if new_status in ["in_progress", "review", "done"] and not db_task.actual_start_date:
+                db_task.actual_start_date = today
+                
+            if new_status == "done":
+                db_task.actual_end_date = today
+                
+            if old_status == "done" and new_status in ["in_progress", "review"]:
+                db_task.actual_end_date = None
         else:
             setattr(db_task, key, value)
             
@@ -84,12 +116,36 @@ def update_task(task_id: str, task: schemas.TaskUpdate, db: Session = Depends(ge
     db.refresh(db_task)
     return db_task
 
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: str, db: Session = Depends(get_db)):
+    db_task = db.query(models.DBTask).filter(models.DBTask.id == task_id).first()
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    db.query(models.DBDependency).filter(
+        (models.DBDependency.prerequisite_id == task_id) | 
+        (models.DBDependency.dependent_id == task_id)
+    ).delete()
+    
+    db.delete(db_task)
+    db.commit()
+    
+    _recompute_graph(db)
+    return {"ok": True}
+
 @app.get("/dependencies", response_model=List[schemas.Dependency])
 def read_dependencies(db: Session = Depends(get_db)):
     return db.query(models.DBDependency).all()
 
 @app.post("/dependencies", response_model=schemas.Dependency)
 def create_dependency(dep: schemas.Dependency, db: Session = Depends(get_db)):
+    prereq = db.query(models.DBTask).filter(models.DBTask.id == dep.prerequisite_id).first()
+    dependent = db.query(models.DBTask).filter(models.DBTask.id == dep.dependent_id).first()
+    
+    if not prereq or not dependent:
+        raise HTTPException(status_code=404, detail="One or both tasks not found")
+        
+
     db_edges = db.query(models.DBDependency).all()
     edges_list = [(e.prerequisite_id, e.dependent_id) for e in db_edges]
     
@@ -128,7 +184,7 @@ def generate_suggestions(db: Session = Depends(get_db)):
         status=engine.TaskStatus(t.status), position=t.position, 
         duration_days=t.duration_days, planned_start=t.planned_start, 
         start_date=t.start_date or t.planned_start, end_date=t.end_date or t.planned_start, 
-        blocked=t.blocked, is_critical=t.is_critical, version=t.version
+        blocked=t.blocked, is_critical=t.is_critical, version=t.version, created_at=t.created_at
     ) for t in db_tasks]
     
     db_edges = db.query(models.DBDependency).all()
@@ -141,16 +197,12 @@ def generate_suggestions(db: Session = Depends(get_db)):
     for s in suggestions:
         existing = db.query(models.DBDependencySuggestion).filter_by(
             prerequisite_id=s['prerequisite_id'], dependent_id=s['dependent_id']
-        ).first() # wait, schema has suggested_prereq_id and task_id
-        
-        existing = db.query(models.DBDependencySuggestion).filter_by(
-            suggested_prereq_id=s['prerequisite_id'], task_id=s['dependent_id']
         ).first()
         
         if not existing:
             new_sugg = models.DBDependencySuggestion(
-                task_id=s['dependent_id'],
-                suggested_prereq_id=s['prerequisite_id'],
+                dependent_id=s['dependent_id'],
+                prerequisite_id=s['prerequisite_id'],
                 confidence=s['confidence'],
                 rationale=s['rationale'],
                 status="pending"
@@ -163,9 +215,17 @@ def generate_suggestions(db: Session = Depends(get_db)):
             if existing.status == "pending":
                 result.append(existing)
                 
-    # Return all pending suggestions
+    # Return all pending suggestions, ensuring uniqueness
     all_pending = db.query(models.DBDependencySuggestion).filter_by(status="pending").all()
-    return all_pending
+    seen_pairs = set()
+    distinct_pending = []
+    for s in all_pending:
+        pair = (s.prerequisite_id, s.dependent_id)
+        if pair not in seen_pairs:
+            seen_pairs.add(pair)
+            distinct_pending.append(s)
+            
+    return distinct_pending
 
 @app.post("/suggestions/{sugg_id}/accept")
 def accept_suggestion(sugg_id: int, db: Session = Depends(get_db)):
@@ -178,7 +238,7 @@ def accept_suggestion(sugg_id: int, db: Session = Depends(get_db)):
     
     # Create the actual dependency
     try:
-        dep = schemas.Dependency(prerequisite_id=sugg.suggested_prereq_id, dependent_id=sugg.task_id)
+        dep = schemas.Dependency(prerequisite_id=sugg.prerequisite_id, dependent_id=sugg.dependent_id)
         return create_dependency(dep, db)
     except Exception as e:
         raise e
@@ -191,3 +251,33 @@ def dismiss_suggestion(sugg_id: int, db: Session = Depends(get_db)):
         db.commit()
     return {"ok": True}
 
+class TaskDraft(BaseModel):
+    title: str
+    description: str
+    id: str
+
+@app.post("/auto-suggest-draft", response_model=List[schemas.DependencySuggestion])
+def auto_suggest_draft(draft: TaskDraft, db: Session = Depends(get_db)):
+    db_tasks = db.query(models.DBTask).all()
+    tasks = [schemas.Task(
+        id=t.id, title=t.title, description=t.description, 
+        status=engine.TaskStatus(t.status), position=t.position, 
+        duration_days=t.duration_days, planned_start=t.planned_start, 
+        start_date=t.start_date or t.planned_start, end_date=t.end_date or t.planned_start, 
+        blocked=t.blocked, is_critical=t.is_critical, version=t.version, created_at=t.created_at
+    ) for t in db_tasks]
+    
+    suggestions = ai_pipeline.get_suggestions_for_draft(draft.title, draft.description, draft.id, tasks)
+    
+    # Return mock DependencySuggestion objects (not saved to DB)
+    result = []
+    for i, s in enumerate(suggestions):
+        result.append(schemas.DependencySuggestion(
+            id=-i-1, # negative id for draft suggestions
+            prerequisite_id=s['prerequisite_id'],
+            dependent_id=s['dependent_id'],
+            confidence=s['confidence'],
+            rationale=s['rationale'],
+            status="pending"
+        ))
+    return result

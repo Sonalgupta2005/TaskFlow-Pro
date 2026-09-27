@@ -4,10 +4,12 @@ import { Layers, Moon, Sun } from 'lucide-react';
 import { KanbanBoard } from './components/KanbanBoard';
 import { DependencyEditor } from './components/DependencyEditor';
 import { GraphView } from './components/GraphView';
+import { TaskEditor } from './components/TaskEditor';
 
 function App() {
   const [showDeps, setShowDeps] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
+  const [showNewTask, setShowNewTask] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
@@ -34,7 +36,7 @@ function App() {
           </button>
           <button className="btn btn-ghost" onClick={() => setShowGraph(true)}>Graph View</button>
           <button className="btn btn-ghost" onClick={() => setShowDeps(true)}>Dependencies</button>
-          <button className="btn">+ New Task</button>
+          <button className="btn" onClick={() => setShowNewTask(true)}>+ New Task</button>
         </div>
       </header>
       <main>
@@ -50,6 +52,13 @@ function App() {
       
       {showGraph && (
         <GraphView onClose={() => setShowGraph(false)} />
+      )}
+
+      {showNewTask && (
+        <TaskEditor 
+          onClose={() => setShowNewTask(false)} 
+          onSuccess={() => setRefreshKey(prev => prev + 1)} 
+        />
       )}
     </>
   );
