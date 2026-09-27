@@ -12,7 +12,7 @@ TaskFlow Pro is a modern, responsive Kanban board powered by a backend Directed 
 - **Rich User Interface:** Features a stunning dark mode interface using glassmorphism, fluid drag-and-drop mechanics (using `dnd-kit`), and an interactive Read-Only Dependency Graph View (using `React Flow`).
 
 ## 🎥 Demo
-<video controls src="demo-video.mp4" title="TaskFlow Pro Demo"></video>
+https://drive.google.com/file/d/1ZV9SyRG6bQLzSLUPoo2IXrjZKVy7--Jb/view?usp=sharing
 
 ## 🛠️ Setup Instructions
 
