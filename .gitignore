@@ -51,7 +51,6 @@ dist-ssr
 database.db
 
 # Large media & models (General restrictions)
-*.mp4
 *.mkv
 *.webm
 *.mov
