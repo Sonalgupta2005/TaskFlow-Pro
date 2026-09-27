@@ -3,6 +3,20 @@ from datetime import date, datetime
 from typing import List, Optional
 from .engine import TaskStatus
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+class User(BaseModel):
+    id: int
+    username: str
+    
+    model_config = ConfigDict(from_attributes=True)
+
 class TaskBase(BaseModel):
     title: str
     description: str

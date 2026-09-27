@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchTasks, updateTask, type Task, type TaskStatus } from '../api/client';
+import { fetchTasks, updateTask, seedData, type Task, type TaskStatus } from '../api/client';
 import { TaskCard } from './TaskCard';
 import { 
   DndContext, 
@@ -101,26 +101,55 @@ export const KanbanBoard = () => {
     return createdA - createdB;
   });
 
+  const handleSeedData = async () => {
+    setLoading(true);
+    try {
+      await seedData();
+      await loadTasks();
+      toast.success('Data seeded successfully');
+    } catch (err) {
+      toast.error('Failed to seed data');
+      setLoading(false);
+    }
+  };
+
+  if (!loading && tasks.length === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1.5rem', color: 'var(--text-muted)' }}>
+        <h2>No Tasks Found</h2>
+        <p>Your board is completely empty.</p>
+        <button onClick={handleSeedData} className="btn">
+          Seed Example Data
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="kanban-container">
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-        {COLUMNS.map(col => (
-          <DroppableColumn key={col.id} id={col.id} title={col.title}>
-            {sortedTasks.filter(t => t.status === col.id).map(task => (
-              <div key={task.id} onDoubleClick={() => setEditingTask(task)}>
-                <TaskCard task={task} />
-              </div>
-            ))}
-          </DroppableColumn>
-        ))}
-      </DndContext>
-      {editingTask && (
-        <TaskEditor 
-          taskToEdit={editingTask} 
-          onClose={() => setEditingTask(null)} 
-          onSuccess={loadTasks} 
-        />
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="kanban-container">
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+          {COLUMNS.map(col => (
+            <DroppableColumn key={col.id} id={col.id} title={col.title}>
+              {sortedTasks.filter(t => t.status === col.id).map(task => (
+                <div key={task.id} onDoubleClick={() => setEditingTask(task)}>
+                  <TaskCard task={task} />
+                </div>
+              ))}
+            </DroppableColumn>
+          ))}
+        </DndContext>
+        {editingTask && (
+          <TaskEditor 
+            taskToEdit={editingTask} 
+            onClose={() => setEditingTask(null)} 
+            onSuccess={loadTasks} 
+          />
+        )}
+      </div>
+      <div style={{ textAlign: 'center', color: 'var(--text-primary)', fontSize: '1rem', padding: '1.5rem', width: '100%', fontWeight: 500, background: 'var(--bg-glass)', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
+        ℹ️ Double-clicking on the task card enables editing it
+      </div>
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { KanbanBoard } from './components/KanbanBoard';
 import { DependencyEditor } from './components/DependencyEditor';
 import { GraphView } from './components/GraphView';
 import { TaskEditor } from './components/TaskEditor';
+import { AuthPage } from './components/AuthPage';
 
 function App() {
   const [showDeps, setShowDeps] = useState(false);
@@ -12,10 +13,28 @@ function App() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('token', token);
+    } else {
+      localStorage.removeItem('token');
+    }
+  }, [token]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  if (!token) {
+    return (
+      <>
+        <Toaster position="top-right" />
+        <AuthPage onAuthSuccess={setToken} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -37,6 +56,7 @@ function App() {
           <button className="btn btn-ghost" onClick={() => setShowGraph(true)}>Graph View</button>
           <button className="btn btn-ghost" onClick={() => setShowDeps(true)}>Dependencies</button>
           <button className="btn" onClick={() => setShowNewTask(true)}>+ New Task</button>
+          <button className="btn-ghost" style={{ padding: '0.4rem', border: '1px solid var(--border-color)', borderRadius: '4px' }} onClick={() => setToken(null)}>Logout</button>
         </div>
       </header>
       <main>

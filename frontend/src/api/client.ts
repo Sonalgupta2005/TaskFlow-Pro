@@ -1,7 +1,15 @@
 import axios from 'axios';
 
 export const apiClient = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+});
+
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export type TaskStatus = 'backlog' | 'in_progress' | 'review' | 'done';
@@ -86,6 +94,26 @@ export const dismissSuggestion = async (id: number): Promise<void> => {
 
 export const fetchDraftSuggestions = async (title: string, description: string, id: string): Promise<DependencySuggestion[]> => {
   const { data } = await apiClient.post('/auto-suggest-draft', { title, description, id });
+  return data;
+};
+
+export const login = async (username: string, password: string) => {
+  const formData = new URLSearchParams();
+  formData.append('username', username);
+  formData.append('password', password);
+  const { data } = await apiClient.post('/auth/token', formData, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  });
+  return data;
+};
+
+export const register = async (username: string, password: string) => {
+  const { data } = await apiClient.post('/auth/register', { username, password });
+  return data;
+};
+
+export const seedData = async () => {
+  const { data } = await apiClient.post('/seed');
   return data;
 };
 

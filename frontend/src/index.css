@@ -113,7 +113,8 @@ body {
 }
 
 .kanban-column {
-  flex: 0 0 350px;
+  flex: 1;
+  min-width: 220px;
   display: flex;
   flex-direction: column;
   background: var(--column-bg);

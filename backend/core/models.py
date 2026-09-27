@@ -1,17 +1,25 @@
-from sqlalchemy import Column, String, Integer, Date, Boolean, ForeignKey, UniqueConstraint, DateTime
+from sqlalchemy import Column, String, Integer, Date, Boolean, ForeignKey, UniqueConstraint, DateTime, ForeignKeyConstraint
 from sqlalchemy.orm import relationship
 import datetime
 from .database import Base
 from .engine import TaskStatus
 
+class DBUser(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    username = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+
 class TaskSequence(Base):
     __tablename__ = "task_sequence"
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    last_value = Column(Integer, default=0)
 
 class DBTask(Base):
     __tablename__ = "tasks"
 
     id = Column(String, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     title = Column(String, index=True)
     description = Column(String)
     status = Column(String, default=TaskStatus.BACKLOG.value)
@@ -30,19 +38,28 @@ class DBTask(Base):
 class DBDependency(Base):
     __tablename__ = "dependencies"
 
-    prerequisite_id = Column(String, ForeignKey("tasks.id"), primary_key=True)
-    dependent_id = Column(String, ForeignKey("tasks.id"), primary_key=True)
+    prerequisite_id = Column(String, primary_key=True)
+    dependent_id = Column(String, primary_key=True)
+    user_id = Column(Integer, primary_key=True)
 
     __table_args__ = (
-        UniqueConstraint('prerequisite_id', 'dependent_id', name='uix_1'),
+        ForeignKeyConstraint(['user_id', 'prerequisite_id'], ['tasks.user_id', 'tasks.id']),
+        ForeignKeyConstraint(['user_id', 'dependent_id'], ['tasks.user_id', 'tasks.id']),
+        UniqueConstraint('prerequisite_id', 'dependent_id', 'user_id', name='uix_1'),
     )
 
 class DBDependencySuggestion(Base):
     __tablename__ = "dependency_suggestions"
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    prerequisite_id = Column(String, ForeignKey("tasks.id"))
-    dependent_id = Column(String, ForeignKey("tasks.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    prerequisite_id = Column(String)
+    dependent_id = Column(String)
     confidence = Column(String)
     rationale = Column(String)
     status = Column(String, default="pending") # pending, accepted, dismissed
+
+    __table_args__ = (
+        ForeignKeyConstraint(['user_id', 'prerequisite_id'], ['tasks.user_id', 'tasks.id']),
+        ForeignKeyConstraint(['user_id', 'dependent_id'], ['tasks.user_id', 'tasks.id']),
+    )
