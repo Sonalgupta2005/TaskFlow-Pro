@@ -17,7 +17,9 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
-      window.location.reload();
+      if (error.config && error.config.url !== '/auth/token') {
+        window.location.reload();
+      }
     }
     return Promise.reject(error);
   }

@@ -14,21 +14,28 @@ export const GraphView = ({ onClose }: { onClose: () => void }) => {
       const deps = await fetchDependencies();
 
       // Simple layout: position tasks based on column and index
-      const colMap = { backlog: 0, in_progress: 1, review: 2, done: 3 };
+      const colMap: Record<string, number> = { backlog: 0, in_progress: 1, review: 2, done: 3 };
+      const colCounts: Record<string, number> = { backlog: 0, in_progress: 0, review: 0, done: 0 };
       
-      const newNodes: Node[] = tasks.map(t => ({
-        id: t.id,
-        position: { x: colMap[t.status] * 300 + 50, y: t.position * 100 + 50 },
-        data: { label: `${t.id}: ${t.title}` },
-        style: {
-          background: t.is_critical ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-secondary)',
-          color: 'var(--text-primary)',
-          border: `1px solid ${t.is_critical ? '#EF4444' : 'var(--border-color)'}`,
-          borderRadius: 'var(--radius-md)',
-          padding: '10px',
-          width: 200,
-        },
-      }));
+      const newNodes: Node[] = tasks.map(t => {
+        const colIndex = colMap[t.status] ?? 0;
+        const rowIndex = colCounts[t.status] || 0;
+        colCounts[t.status] = rowIndex + 1;
+        
+        return {
+          id: t.id,
+          position: { x: colIndex * 300 + 50, y: rowIndex * 130 + 50 },
+          data: { label: `${t.id}: ${t.title}` },
+          style: {
+            background: (t.is_critical && t.status !== 'done') ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-secondary)',
+            color: 'var(--text-primary)',
+            border: `1px solid ${(t.is_critical && t.status !== 'done') ? '#EF4444' : 'var(--border-color)'}`,
+            borderRadius: 'var(--radius-md)',
+            padding: '10px',
+            width: 200,
+          },
+        };
+      });
 
       const newEdges: Edge[] = deps.map(d => ({
         id: `${d.prerequisite_id}-${d.dependent_id}`,

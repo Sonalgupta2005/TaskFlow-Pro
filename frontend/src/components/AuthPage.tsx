@@ -29,7 +29,14 @@ export const AuthPage = ({ onAuthSuccess }: { onAuthSuccess: (token: string) => 
         onAuthSuccess(access_token);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Authentication failed');
+      let errorMessage = 'Authentication failed';
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        errorMessage = detail;
+      } else if (Array.isArray(detail)) {
+        errorMessage = detail.map((d: any) => d.msg).join(', ') || errorMessage;
+      }
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

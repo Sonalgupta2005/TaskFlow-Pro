@@ -14,7 +14,7 @@ export const TaskCard = ({ task }: { task: Task }) => {
   let cardStyle: React.CSSProperties = {};
   if (task.status === 'done' && task.blocked) {
     cardStyle = { borderColor: 'rgba(234, 179, 8, 0.6)', boxShadow: '0 0 10px rgba(234, 179, 8, 0.15)' };
-  } else if (task.is_critical) {
+  } else if (task.is_critical && task.status !== 'done') {
     cardStyle = { borderColor: 'rgba(239, 68, 68, 0.5)', boxShadow: '0 0 10px rgba(239, 68, 68, 0.1)' };
   }
 
@@ -40,7 +40,7 @@ export const TaskCard = ({ task }: { task: Task }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>{task.id}</span>
-          {task.is_critical && <span style={{ fontSize: '0.65rem', color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Critical</span>}
+          {(task.is_critical && task.status !== 'done') && <span style={{ fontSize: '0.65rem', color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Critical</span>}
         </div>
         {task.status !== 'done' && (
           task.blocked ? 
