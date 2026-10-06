@@ -140,6 +140,16 @@ def update_task(task_id: str, task: schemas.TaskUpdate, db: Session = Depends(ge
     old_status = db_task.status
     
     update_data = task.model_dump(exclude_unset=True)
+    
+    # If core task details change, invalidate any pending suggestions involving this task
+    if "title" in update_data or "description" in update_data:
+        db.query(models.DBDependencySuggestion).filter(
+            (models.DBDependencySuggestion.prerequisite_id == task_id) | 
+            (models.DBDependencySuggestion.dependent_id == task_id),
+            models.DBDependencySuggestion.user_id == current_user.id,
+            models.DBDependencySuggestion.status == "pending"
+        ).delete()
+        
     for key, value in update_data.items():
         if key == "status" and value:
             new_status = value.value
@@ -181,6 +191,13 @@ def delete_task(task_id: str, db: Session = Depends(get_db), current_user: model
         models.DBDependency.user_id == current_user.id
     ).delete()
     
+    db.query(models.DBDependencySuggestion).filter(
+        (models.DBDependencySuggestion.prerequisite_id == task_id) | 
+        (models.DBDependencySuggestion.dependent_id == task_id),
+        models.DBDependencySuggestion.user_id == current_user.id,
+        models.DBDependencySuggestion.status == "pending"
+    ).delete()
+    
     db.delete(db_task)
     db.commit()
     
@@ -210,6 +227,14 @@ def create_dependency(dep: schemas.Dependency, db: Session = Depends(get_db), cu
         
     db_dep = models.DBDependency(prerequisite_id=dep.prerequisite_id, dependent_id=dep.dependent_id, user_id=current_user.id)
     db.add(db_dep)
+    
+    db.query(models.DBDependencySuggestion).filter_by(
+        prerequisite_id=dep.prerequisite_id, 
+        dependent_id=dep.dependent_id, 
+        user_id=current_user.id,
+        status="pending"
+    ).delete()
+    
     try:
         db.commit()
     except Exception:
@@ -270,16 +295,40 @@ def generate_suggestions(db: Session = Depends(get_db), current_user: models.DBU
             if existing.status == "pending":
                 result.append(existing)
                 
-    # Return all pending suggestions, ensuring uniqueness
+    # Return all pending suggestions, ensuring uniqueness and validity
     all_pending = db.query(models.DBDependencySuggestion).filter_by(status="pending", user_id=current_user.id).all()
+    task_ids = {t.id for t in db_tasks}
+    
     seen_pairs = set()
     distinct_pending = []
     for s in all_pending:
         pair = (s.prerequisite_id, s.dependent_id)
+        
+        if s.prerequisite_id not in task_ids or s.dependent_id not in task_ids:
+            db.delete(s)
+            continue
+            
+        if s.prerequisite_id == s.dependent_id:
+            db.delete(s)
+            continue
+            
+        if pair in edges:
+            db.delete(s)
+            continue
+            
+        try:
+            engine.check_cycles(edges, pair)
+        except engine.CycleDetectedError:
+            db.delete(s)
+            continue
+            
         if pair not in seen_pairs:
             seen_pairs.add(pair)
             distinct_pending.append(s)
+        else:
+            db.delete(s)
             
+    db.commit()
     return distinct_pending
 
 @app.post("/suggestions/{sugg_id}/accept")
@@ -324,15 +373,42 @@ def auto_suggest_draft(draft: TaskDraft, db: Session = Depends(get_db), current_
     
     suggestions = ai_pipeline.get_suggestions_for_draft(draft.title, draft.description, draft.id, tasks)
     
+    db_edges = db.query(models.DBDependency).filter(models.DBDependency.user_id == current_user.id).all()
+    edges = [(e.prerequisite_id, e.dependent_id) for e in db_edges]
+    task_ids = {t.id for t in db_tasks}
+    task_ids.add(draft.id)
+    
     # Return mock DependencySuggestion objects (not saved to DB)
     result = []
+    seen_pairs = set()
     for i, s in enumerate(suggestions):
+        p = s.get('prerequisite_id')
+        d = s.get('dependent_id')
+        
+        if not p or not d or p not in task_ids or d not in task_ids:
+            continue
+            
+        if p == d:
+            continue
+            
+        pair = (p, d)
+        if pair in edges or pair in seen_pairs:
+            continue
+            
+        try:
+            engine.check_cycles(edges, pair)
+        except engine.CycleDetectedError:
+            continue
+            
+        seen_pairs.add(pair)
+        edges.append(pair)
+        
         result.append(schemas.DependencySuggestion(
             id=-i-1, # negative id for draft suggestions
-            prerequisite_id=s['prerequisite_id'],
-            dependent_id=s['dependent_id'],
-            confidence=s['confidence'],
-            rationale=s['rationale'],
+            prerequisite_id=p,
+            dependent_id=d,
+            confidence=s.get('confidence', 'medium'),
+            rationale=s.get('rationale', ''),
             status="pending"
         ))
     return result
